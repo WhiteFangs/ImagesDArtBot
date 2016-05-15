@@ -16,7 +16,7 @@ $APIsettings = array(
     'consumer_key' => $consumerKey,
     'consumer_secret' => $consumerSecret
 );
-$twitter = new TwitterAPIExchange($TwitterAPIsettings);
+$twitter = new TwitterAPIExchange($APIsettings);
 
 // Get Twitter config
 $twitterConfigURL = 'https://api.twitter.com/1.1/help/configuration.json';
@@ -98,7 +98,6 @@ if(isset($result->hits)){
     $postfields = array(
       'status' =>  $tweet,
       'media_ids' => $mediaId);
-    var_dump($postfields);
     $url = "https://api.twitter.com/1.1/statuses/update.json";
     $requestMethod = "POST";
     echo $twitter->resetFields()
