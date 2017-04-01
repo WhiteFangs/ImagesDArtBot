@@ -3,6 +3,7 @@
 include('rmnApiKey.php');
 include('twitterCredentials.php');
 include("Helpers.php");
+include("museumToTwitter.php");
 require_once('TwitterAPIExchange.php');
 header('Content-Type: text/html; charset=utf-8');
 
@@ -47,9 +48,7 @@ if(isset($result->hits)){
     // Upload image of the work
     foreach ($work->images as $image) {
       if($image->default){
-        $photographerCredit = $image->photographer->name;
-        if(isset($image->permalink))
-          $permalink = $image->permalink;
+        $permalink = 'http://art.rmngp.fr/fr/library/artworks/' . $work->slug;
         $imageContent = file_get_contents($image->urls->original);
         $imageData = base64_encode($imageContent);
 
@@ -69,9 +68,7 @@ if(isset($result->hits)){
 
     // Build tweet
     // Set max string length based on Twitter config
-    $maxLength = 140 - $twitterConfig->characters_reserved_per_media - strlen(' / ' . $photographerCredit);
-    if(isset($permalink))
-      $maxLength -= $twitterConfig->short_url_length + 1;
+    $maxLength = 140 - ($twitterConfig->short_url_length + 1);
     // Work title
     $tweet = $work->title->fr;
     // Add first author if available and not too long, else add first authorship detail if available and not too long
@@ -83,16 +80,22 @@ if(isset($result->hits)){
         $tweet .= ", " . $work->authorship_details[0]->name->fr;
     }
     // Add location if available and not too long
-    if(isset($work->location) && isset($work->location->suggest_fr) && isset($work->location->suggest_fr->output)
-      && strlen($tweet . ", " . $work->location->suggest_fr->output) < $maxLength + 1){
-        $tweet .= ", " . $work->location->suggest_fr->output;
+    if(isset($work->location) && isset($work->location->suggest_fr) && isset($work->location->suggest_fr->output)){
+      $location = $work->location->suggest_fr->output;
+      $museumMention = "";
+      foreach ($museumToTwitter as $loc => $mention) {
+        if(stripos($location, $loc) !== FALSE)
+          $museumMention .= " @" . $mention;
+      }
+      if (strlen($museumMention) > 0 && strlen($tweet . $museumMention) < $maxLength + 1)
+        $tweet .= $museumMention;
+      else if(strlen($tweet . ", " . $location) < $maxLength + 1)
+        $tweet .= ", " . $location;
     }
     // Finalize tweet
     if($tweet > $maxLength)
       $tweet = substr($tweet, 0, $maxLength - 3) . "...";
-    $tweet .= ' / ' . $photographerCredit;
-    if(isset($permalink))
-      $tweet .= " " . $permalink;
+    $tweet .= " " . $permalink;
 
     // Post tweet with media
     $postfields = array(
@@ -104,6 +107,7 @@ if(isset($result->hits)){
                   ->buildOauth($url, $requestMethod)
                   ->setPostfields($postfields)
                   ->performRequest();
+
   }
 }
 
